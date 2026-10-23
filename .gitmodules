@@ -1,4 +1,0 @@
-[submodule "lib/COM_protocol"]
-	path = lib/COM_protocol
-	url = https://github.com/igrosh30/communication_protocol.git
-	branch = jetson-dev

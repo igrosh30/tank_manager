@@ -1,6 +1,12 @@
 #include "Arduino.h"
 
 
+//#include "SerialTransport.h"
+#include "SerialTransport.h"
+#include "protocol.h"
+
+
+
 constexpr uint8_t SENSOR_UP = 15;
 constexpr uint8_t SENSOR_DOWN = 16;
 constexpr uint8_t PUMP = 4;
@@ -24,17 +30,24 @@ constexpr uint32_t SENSOR_TIMEOUT_MS =  1 * MS_PER_MIN;
 
 enum class tank_state
 {
-    IDLE,
+    WAIT_PING,
+    CHECK_STABILITY,
     WAIT_CMD,
     DRAIN_AT_TOP,
     DRAIN,
     FILL,
-    REPORT,
+    STABLE,
 };
 
 class WaterTank
 {
+    /*
+        IT?S ALWAYS IN HEARING MODE AND THEN RESPONDS TO CMDS!  - 
+        so we'll add 
+    */
+    
     private:
+        const 
     
     
     public:

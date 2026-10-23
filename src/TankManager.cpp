@@ -16,13 +16,19 @@
 
 void WaterTank::init()//WaterTank
 {
-    set_next_state(tank_state::IDLE);
+    set_next_state(tank_state::WAIT_PING);
     
+    //----------PIN INITIALISATION-----------
     pinMode(SENSOR_UP, INPUT);
     pinMode(SENSOR_DOWN,INPUT);
     pinMode(PUMP,OUTPUT);
     pinMode(VALVE,OUTPUT);
 
+    //ensure pump off and valve close- stable
+    this->pumpOFF();
+    this->close_valve();
+
+    //init SerialCOM!
 
 }
 
@@ -72,9 +78,12 @@ bool WaterTank::setup_env()
 {   
     switch (this->current_tank_state)
     {
-        case tank_state::IDLE:
-            this->pumpOFF();
-            this->close_valve();
+        case tank_state::WAIT_PING:
+            //Put in hearing mode...
+
+            break;
+        
+        case tank_state::CHECK_STABILITY:
             if(isFull())
             {
                 this->open_valve();
@@ -90,7 +99,7 @@ bool WaterTank::setup_env()
                 set_next_state(tank_state::WAIT_CMD);
             }
             break;
-        
+
         case tank_state::DRAIN_AT_TOP:
             if(isTopEmpty())
             {
@@ -145,10 +154,10 @@ void WaterTank::update_state()//needs access to sensors!
             if( (time_in_state()>= FILL_TIMEOUT_MS) || isFull())
             {
                 this->pumpOFF();
-                set_next_state(tank_state::REPORT);
+                set_next_state(tank_state::STABLE);
             }
             break;
-        case tank_state::REPORT:
+        case tank_state::STABLE:
             //we do a report and wait response - get the response - WAIT_CMD! 
             //if ack-> set_next_state(WAIT_CMD);
             break;
