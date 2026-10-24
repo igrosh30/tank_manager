@@ -17,29 +17,23 @@ constexpr uint32_t MS_PER_MIN = 60UL * 1000UL;
 constexpr uint32_t DRAIN_TIMEOUT_MS  = 10 * MS_PER_MIN;
 constexpr uint32_t FILL_TIMEOUT_MS   =  3 * MS_PER_MIN;
 constexpr uint32_t SENSOR_TIMEOUT_MS =  1 * MS_PER_MIN; 
+constexpr uint32_t SETUP_TIMEOUT_MS = DRAIN_TIMEOUT_MS+ FILL_TIMEOUT_MS + 2*MS_PER_MIN;; 
 
 
-// enum class deploy_tank
-// {
-//     IDLE,
-//     HALF_DRAIN,
-//     FULL_DRAIN,
-//     FILL,
-//     STABLE,
-// };
-
-enum class tank_state
+// ⚠️ MUST stay byte-identical with the other side's tank_state
+enum class tank_state : uint8_t
 {
-    WAIT_PING,
-    CHECK_STABILITY,
-    WAIT_CMD,
-    DRAIN_AT_TOP,
-    DRAIN,
-    FILL,
-    STABLE,
+    CHECK_STABILITY = 0,
+    WAIT_CMD        = 1,
+    DRAIN_AT_TOP    = 2,
+    DRAIN           =  3,
+    FILL            = 4,
+    STABLE          = 5,
 };
 
-class WaterTank
+
+
+class WaterTank_Worker
 {
     /*
         IT?S ALWAYS IN HEARING MODE AND THEN RESPONDS TO CMDS!  - 
@@ -47,26 +41,30 @@ class WaterTank
     */
     
     private:
-        const 
     
     
     public:
         
         
         bool gpio_active = false;// TODO: derive from .enabled after setup_gpios, or set true when GPIOs wired
+        bool startCycleFlag = false;
+        bool com_working = false;
+        bool tank_stable = false;
 
         //I need to store the value of the actual motor right? ....
         uint16_t sensor_down_val;
         uint16_t sensor_up_val;
         
-        //Serial* jetson_com;
+        SerialTransport jetson_link;
+        Frame incomingFrame;
 
         //deploy_tank deploy_state;
         tank_state current_tank_state;
+    
         unsigned long state_entry;
 
         //Setup funct:
-        void init(); // we do DigitalWrite, etc. 
+        void init(Stream* port); // we do DigitalWrite, etc. 
         bool setup_env();//this can also be runned on the setup()
 
         void read_sensors();
@@ -74,12 +72,16 @@ class WaterTank
         
 
         void update_state();
+        void update_com();
+        void process_request(const Frame& f);
+        void buildHeader(Frame& f, MsgType type, uint8_t len, uint8_t dest);
         
         unsigned long time_in_state() const;
         void set_next_state(tank_state s );
 
+        bool setupCOM();//check if com works -> PING-PONG
 
-        bool startCycle();
+        bool startCycle(); // check if ewceived to start the cycle
         bool isEmpty() const;
         bool isTopEmpty() const;
         bool isFull()const;

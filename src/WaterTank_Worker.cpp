@@ -1,4 +1,4 @@
-#include "TankManager.hpp"
+#include "WaterTank_Worker.hpp"
 
 
 //TODO's
@@ -14,58 +14,76 @@
 
 */
 
-void WaterTank::init()//WaterTank
+void WaterTank_Worker::init(Stream* port)//WaterTank
 {
-    set_next_state(tank_state::WAIT_PING);
-    
-    //----------PIN INITIALISATION-----------
+    //----------COM INITIALISTION------------//
+    if(port == nullptr) return;
+    jetson_link.init(port,false);
+
+    //----------PIN INITIALISATION-----------//
     pinMode(SENSOR_UP, INPUT);
     pinMode(SENSOR_DOWN,INPUT);
     pinMode(PUMP,OUTPUT);
     pinMode(VALVE,OUTPUT);
 
-    //ensure pump off and valve close- stable
+    //stability:
     this->pumpOFF();
     this->close_valve();
+    set_next_state(tank_state::CHECK_STABILITY);//NEEDS to receive a PING! 
 
-    //init SerialCOM!
-
+}
+bool WaterTank_Worker::setupCOM()
+{
+    
+    jetson_link.updateFrame();//this is a non-blocking function! 
+    if (jetson_link.hasNewFrame())
+    {
+        jetson_link.getFrame(incomingFrame);
+        if(incomingFrame.header.type== MsgType::PING)
+        {
+            Frame f;
+            buildHeader(f,MsgType::PONG,0,incomingFrame.header.src);
+            jetson_link.sendFrame(f);
+            com_working = true;
+        }
+        //process request:
+    }   
+    return com_working;
 }
 
 //-------------------------------------------------------------------------------
 //-------------------------GPIO FUNCTIONS----------------------------------------
 //-------------------------------------------------------------------------------
-
-void WaterTank::read_sensors()
+void WaterTank_Worker::read_sensors()
 {
     sensor_down_val=digitalRead(SENSOR_DOWN);
     sensor_up_val = digitalRead(SENSOR_UP);
 }
 
-bool WaterTank::isEmpty() const {return sensor_down_val == LOW;}
-bool WaterTank::isTopEmpty() const {return sensor_up_val == LOW;}
-bool WaterTank::isFull() const {return sensor_up_val == HIGH;}
+bool WaterTank_Worker::isEmpty() const {return sensor_down_val == LOW;}
+bool WaterTank_Worker::isTopEmpty() const {return sensor_up_val == LOW;}
+bool WaterTank_Worker::isFull() const {return sensor_up_val == HIGH;}
 
-void WaterTank::set_actuator(int gpio, int val)
+void WaterTank_Worker::set_actuator(int gpio, int val)
 {
     digitalWrite(gpio,val);
 }
 
-void WaterTank::close_valve()
+void WaterTank_Worker::close_valve()
 {
     this->set_actuator(VALVE,LOW);//check if 0 is the val to turn off the valve! 
 }
 
-void WaterTank::open_valve()
+void WaterTank_Worker::open_valve()
 {
     this->set_actuator(VALVE,HIGH);//check if 1 is the val to turn off the valve! 
 }
 
-void WaterTank::pumpON()
+void WaterTank_Worker::pumpON()
 {
     this->set_actuator(PUMP,HIGH);//check if 0 is the val to turn off the valve! 
 }
-void WaterTank::pumpOFF()
+void WaterTank_Worker::pumpOFF()
 {
     this->set_actuator(PUMP,LOW);//check if 0 is the val to turn off the valve! 
 }
@@ -74,15 +92,12 @@ void WaterTank::pumpOFF()
 //-------------------------------------------------------------------------------
 //------------------------F.State Machines---------------------------------------
 //-------------------------------------------------------------------------------
-bool WaterTank::setup_env()
-{   
-    switch (this->current_tank_state)
-    {
-        case tank_state::WAIT_PING:
-            //Put in hearing mode...
 
-            break;
-        
+
+bool WaterTank_Worker::setup_env()
+{
+    switch (this->current_tank_state)
+    {   
         case tank_state::CHECK_STABILITY:
             if(isFull())
             {
@@ -125,15 +140,13 @@ bool WaterTank::setup_env()
 
    return this->current_tank_state == tank_state::WAIT_CMD;  
 }
-
-
-void WaterTank::update_state()//needs access to sensors! 
+void WaterTank_Worker::update_state()//needs access to sensors! 
 {       
     switch(this->current_tank_state)
     {
         case tank_state::WAIT_CMD: //waiting message to start! -> we can or not have a timeout also!
             //need to put listening for a valid CMD!! 
-            if(startCycle() || this->time_in_state() >= SENSOR_TIMEOUT_MS)
+            if(this->startCycleFlag || this->time_in_state() >= SENSOR_TIMEOUT_MS)
             {
                 this->open_valve();
                 set_next_state(tank_state::DRAIN);
@@ -164,7 +177,7 @@ void WaterTank::update_state()//needs access to sensors!
     }
 }
 
-void WaterTank:: set_next_state(tank_state s )
+void WaterTank_Worker:: set_next_state(tank_state s )
 {
     if(s != current_tank_state)
     {
@@ -172,7 +185,78 @@ void WaterTank:: set_next_state(tank_state s )
         state_entry = millis();
     }   
 }
-
-unsigned long WaterTank::time_in_state() const {
+unsigned long WaterTank_Worker::time_in_state() const {
     return millis() - state_entry;
+}
+
+
+
+
+//-------------------------------------------------------------------------------
+//--------------------------COM link With JETSON---------------------------------
+//-------------------------------------------------------------------------------
+void WaterTank_Worker::update_com()
+{
+    
+    jetson_link.updateFrame();//this is a non-blocking function! 
+    if (jetson_link.hasNewFrame())
+    {
+        jetson_link.getFrame(incomingFrame);
+        process_request(incomingFrame);
+        //process request:
+    }
+
+}
+
+void WaterTank_Worker::process_request(const Frame& f)
+{
+    Frame reply;
+    uint8_t dest = f.header.src;   // reply goes back to whoever asked
+
+    switch (f.header.type)
+    {
+        case PING:
+            buildHeader(reply, PONG, 0, dest);
+            jetson_link.sendFrame(reply);
+            break;
+
+        case DATA_ASK:
+            if (f.payload.data.cmdId == ASK_TANK_STATE)
+            {
+                buildHeader(reply, DATA_SEND, 2, dest);
+                reply.payload.data.cmdId  = ASK_TANK_STATE;
+                reply.payload.data.param[0] = (uint8_t)current_tank_state;
+                jetson_link.sendFrame(reply);
+            }
+            break;
+
+        case CMD:
+            switch (f.payload.data.cmdId)
+            {
+                case START_CYCLE:
+                    startCycleFlag = true;   // business FSM picks this up
+                    buildHeader(reply, ACK, 2, dest);
+                    reply.payload.action_ack.cmdId  = START_CYCLE;
+                    reply.payload.action_ack.status = ACK_OK;
+                    jetson_link.sendFrame(reply);
+                    break;
+
+                case WAKE_UP:
+                    buildHeader(reply, ACK, 2, dest);
+                    reply.payload.action_ack.cmdId  = WAKE_UP;
+                    reply.payload.action_ack.status = ACK_OK;
+                    jetson_link.sendFrame(reply);
+                    break;
+            }
+            break;
+    }
+}
+
+void WaterTank_Worker::buildHeader(Frame& f, MsgType type, uint8_t len, uint8_t dest)
+{
+    f.sof         = SOF_VALUE;
+    f.header.src  = TANK_MCU;
+    f.header.dest = dest;
+    f.header.type = type;
+    f.header.len  = len;
 }
