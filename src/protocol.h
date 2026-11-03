@@ -36,7 +36,7 @@ enum NodeId
 
 enum MsgType
 {
-    PING        = 0,
+    PING_        = 0,
     PONG        = 1,
     CMD         = 10,    //ACTUATION.
     DATA_SEND   = 20,    //DATA - sending or asking? 
