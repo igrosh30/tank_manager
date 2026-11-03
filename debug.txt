@@ -1,0 +1,13 @@
+rm ~/.platformio/packages/toolchain-gccarmnoneeabi
+
+mkdir -p ~/.platformio/packages/toolchain-gccarmnoneeabi/bin
+ln -s /usr/bin/arm-none-eabi-* ~/.platformio/packages/toolchain-gccarmnoneeabi/bin/
+
+  nano ~/.platformio/packages/toolchain-gccarmnoneeabi/package.json
+
+  {
+  "name": "toolchain-gccarmnoneeabi",
+  "version": "1.70201.0",
+  "description": "System ARM GCC toolchain",
+  "system": ["linux_aarch64"]
+}
