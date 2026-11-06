@@ -11,7 +11,10 @@ void setup()
 }
 void loop()
 {
+    #ifndef DEBUG_SERIAL
     worker.update_com();
+    #endif
+
     worker.update_state();
 
     //Serial.print(worker.sensor_up_val);

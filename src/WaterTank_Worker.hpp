@@ -2,7 +2,7 @@
 
 #include "Arduino.h"
 
-//#define DEBUG_SERIAL 1
+#define DEBUG_SERIAL 1
 
 //#include "SerialTransport.h"
 #include "SerialTransport.h"
@@ -29,9 +29,10 @@ constexpr uint8_t VALVE = 3;//INI2
 constexpr uint32_t MS_PER_MIN = 60UL * 1000UL;
 constexpr uint32_t MS_PER_SEC= 1000UL;
 
-constexpr uint32_t DRAIN_TIMEOUT_MS  = 2*MS_PER_MIN+ 30*MS_PER_SEC;//DRAIN_TIMEOUT
-constexpr uint32_t FILL_TIMEOUT_MS   = 1*MS_PER_MIN+ 30*MS_PER_SEC;   
-constexpr uint32_t SENSOR_TIMEOUT_MS = 30*MS_PER_MIN;  
+constexpr uint32_t DRAIN_TIMEOUT_MS             = 1*MS_PER_MIN+ 30*MS_PER_SEC;//DRAIN_TIMEOUT
+constexpr uint32_t DRAIN_LEFTOVERS_TIMEOUT_MS   = 30*MS_PER_SEC;//DRAIN_TIMEOUT
+constexpr uint32_t FILL_TIMEOUT_MS              = 50*MS_PER_SEC;//it had already been pumping watter!   
+constexpr uint32_t SENSOR_TIMEOUT_MS            = 30*MS_PER_MIN;  
 
 //constexpr uint32_t SETUP_TIMEOUT_MS = DRAIN_TIMEOUT_MS+ FILL_TIMEOUT_MS + 2*MS_PER_MIN;; 
 
@@ -40,7 +41,7 @@ constexpr uint32_t SENSOR_TIMEOUT_MS = 30*MS_PER_MIN;
 enum class tank_state : uint8_t
 {
     CHECK_STABILITY = 0,   // boot: read sensors, decide
-    //DRAIN_AT_TOP    = 1,   // level too high — bleed down
+    DRAIN_LEFTOVERS = 1,   // level too high — bleed down
     FILL            = 2,   // filling to level (shared by both phases)
     READY           = 3,   // levelled, idle, awaiting command
     DRAIN           = 4,   // full-cycle drain
@@ -69,6 +70,7 @@ class WaterTank_Worker
 
         //deploy_tank deploy_state;
         tank_state current_tank_state;
+        tank_state previous_tank_state;
     
         unsigned long state_entry;
 

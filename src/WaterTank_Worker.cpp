@@ -1,8 +1,11 @@
 #include "WaterTank_Worker.hpp"
 
-
-//TODO's
 /*
+IMPORTANT NOTES when deploying:
+    1.check timeouts on the field
+    2.  
+
+TODO's
     1- add timeouts so even if the sensors are not working, we can still perform this! ✅
     2- add the restart / reboot safety state  
     3- add a test function for the GPIOS before run the tank state update
@@ -103,6 +106,15 @@ void WaterTank_Worker::update_state()
             break;
 
         case tank_state::READY:
+            #ifdef DEBUG_SERIAL
+            if (time_in_state()>= 10000)
+            {
+                digitalWrite(LED_BUILTIN, HIGH);
+                startCycleFlag = false;
+                open_valve();
+                set_next_state(tank_state::DRAIN, "START_CYCLE command");
+            }
+            #endif
             if (startCycleFlag)
             {
                 digitalWrite(LED_BUILTIN, HIGH);
@@ -111,35 +123,39 @@ void WaterTank_Worker::update_state()
                 set_next_state(tank_state::DRAIN, "START_CYCLE command");
             }
             /*
-            THIS TIMEOUT HELPS IF THE COM ISn't workin! 
+            THIS TIMEOUT HELPS IF THE COM ISn't workin! - 
+            ***if COM isn't working something is really bad...
             else if (time_in_state() >= SENSOR_TIMEOUT_MS) {
                 open_valve();
                 set_next_state(tank_state::DRAIN, "autonomous timer");}*/
             break;
 
-        case tank_state::DRAIN://stays here at least 20s
-            /*
-            we'll add for now only a timeout! 
-            
-            if(time_in_state() < 20000)//20s needs to drain
-            {
-                sensor_up_val = HIGH;
-                return;
-            }
-            if (isEmpty() || time_in_state() >= DRAIN_TIMEOUT_MS)
-            {
-                close_valve();
-                pumpON();
-                set_next_state(tank_state::FILL, "bottom sensor: empty");
-            }*/
+        case tank_state::DRAIN:
            if (time_in_state() >= DRAIN_TIMEOUT_MS)
             {
-                close_valve();
                 pumpON();
-                set_next_state(tank_state::FILL, "bottom sensor: empty");
+                if(previous_tank_state == tank_state::READY)
+                    set_next_state(tank_state::DRAIN_LEFTOVERS, "Going drain leftovers");
+                else if(previous_tank_state == tank_state::DRAIN_LEFTOVERS)
+                {
+                    close_valve();
+                    set_next_state(tank_state::FILL, "fill for sens_capture!");
+                }                
             }
             break;
 
+        
+        case tank_state::DRAIN_LEFTOVERS:
+            //we need first to get out the static water! is done with open valve! 
+            //here we have 2 stages!
+            if(time_in_state() >= DRAIN_LEFTOVERS_TIMEOUT_MS)//this needs to be calculated! 
+            {
+                //left open valve + pumping! 
+                pumpOFF();
+                set_next_state(tank_state::DRAIN,"Drainned leftovers");
+                return;
+            }
+            
         case tank_state::FILL:
             if (isFull() ||time_in_state() >= FILL_TIMEOUT_MS )
             {
@@ -165,6 +181,7 @@ void WaterTank_Worker::set_next_state(tank_state s, const char* reason)
         Serial.print(reason);
         Serial.println(F("]"));
 #endif
+        previous_tank_state = current_tank_state;
         current_tank_state = s;
         state_entry = millis();
     }
