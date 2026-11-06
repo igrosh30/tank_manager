@@ -29,9 +29,9 @@ constexpr uint8_t VALVE = 3;//INI2
 constexpr uint32_t MS_PER_MIN = 60UL * 1000UL;
 constexpr uint32_t MS_PER_SEC= 1000UL;
 
-constexpr uint32_t DRAIN_TIMEOUT_MS  = 1*MS_PER_MIN+ 30*MS_PER_SEC;   // 1m30s
-constexpr uint32_t FILL_TIMEOUT_MS   = 50*MS_PER_SEC;   //50s
-constexpr uint32_t SENSOR_TIMEOUT_MS = 30*MS_PER_MIN;  // set to 30? - if com stops working
+constexpr uint32_t DRAIN_TIMEOUT_MS  = 2*MS_PER_MIN+ 30*MS_PER_SEC;//DRAIN_TIMEOUT
+constexpr uint32_t FILL_TIMEOUT_MS   = 1*MS_PER_MIN+ 30*MS_PER_SEC;   
+constexpr uint32_t SENSOR_TIMEOUT_MS = 30*MS_PER_MIN;  
 
 //constexpr uint32_t SETUP_TIMEOUT_MS = DRAIN_TIMEOUT_MS+ FILL_TIMEOUT_MS + 2*MS_PER_MIN;; 
 
