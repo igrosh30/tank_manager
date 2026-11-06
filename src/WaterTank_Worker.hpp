@@ -2,7 +2,7 @@
 
 #include "Arduino.h"
 
-#define DEBUG_SERIAL 1
+//#define DEBUG_SERIAL 1
 
 //#include "SerialTransport.h"
 #include "SerialTransport.h"
