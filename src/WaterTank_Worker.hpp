@@ -54,7 +54,7 @@ class WaterTank_Worker
     private:
        
     public:        
-        
+        bool work_reboot;
         bool gpio_active = false;// TODO: derive from .enabled after setup_gpios, or set true when GPIOs wired
         bool startCycleFlag = false;
 

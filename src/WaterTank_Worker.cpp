@@ -19,6 +19,7 @@ TODO's
 
 void WaterTank_Worker::init(Stream* port)//WaterTank
 {
+    this->work_reboot = true;
     //----------COM INITIALISTION------------//
     #ifndef DEBUG_SERIAL
     if(port == nullptr) return;
@@ -134,13 +135,14 @@ void WaterTank_Worker::update_state()
            if (time_in_state() >= DRAIN_TIMEOUT_MS)
             {
                 pumpON();
-                if(previous_tank_state == tank_state::READY)
-                    set_next_state(tank_state::DRAIN_LEFTOVERS, "Going drain leftovers");
-                else if(previous_tank_state == tank_state::DRAIN_LEFTOVERS)
+                if(work_reboot || previous_tank_state == tank_state::DRAIN_LEFTOVERS)
                 {
+                    if(work_reboot) work_reboot = false;
+                    set_next_state(tank_state::FILL, "Filling");
                     close_valve();
-                    set_next_state(tank_state::FILL, "fill for sens_capture!");
-                }                
+                }
+                else if(previous_tank_state == tank_state::READY)
+                    set_next_state(tank_state::DRAIN_LEFTOVERS, "Going drain leftovers");             
             }
             break;
 
@@ -157,6 +159,9 @@ void WaterTank_Worker::update_state()
             }
             
         case tank_state::FILL:
+            if(time_in_state() <= 20000) // at least do 20s filling
+                return;
+
             if (isFull() ||time_in_state() >= FILL_TIMEOUT_MS )
             {
                 pumpOFF();
