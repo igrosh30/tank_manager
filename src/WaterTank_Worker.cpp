@@ -159,9 +159,9 @@ void WaterTank_Worker::update_state()
         case tank_state::FILL:
             close_valve();
             pumpON();
-            if(time_in_state() <= 20000) // - we can add a sensor error warning if this happens!
+            if(time_in_state() <= 30000) // - we can add a sensor error warning if this happens!
                 return;
-            if(isFull())
+            if(isFull())//sensor can turnOn - next iteration is off...
             {
                 if(delay_after_detection == 0)
                     delay_after_detection = millis();
