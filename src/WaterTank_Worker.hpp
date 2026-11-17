@@ -64,6 +64,7 @@ class WaterTank_Worker
         
         //uint32_t time_sensorDownON;
         uint32_t time_sensorUpON; 
+        uint32_t delay_after_detection = 0;
 
         SerialTransport jetson_link;
  

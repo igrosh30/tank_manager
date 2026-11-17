@@ -159,10 +159,21 @@ void WaterTank_Worker::update_state()
             }
             
         case tank_state::FILL:
-            if(time_in_state() <= 20000) // at least do 20s filling
+            if(time_in_state() <= 20000) // - we can add a sensor error warning if this happens!
                 return;
-
-            if (isFull() ||time_in_state() >= FILL_TIMEOUT_MS )
+            if(isFull())
+            {
+                if(delay_after_detection == 0)
+                    delay_after_detection = millis();
+                if(millis() - delay_after_detection > 5000 )
+                {
+                    delay_after_detection = 0;
+                    pumpOFF();
+                    digitalWrite(LED_BUILTIN, LOW);
+                    set_next_state(tank_state::READY, "top sensor: full");   
+                }
+            }//TIMEOUT
+            else if (time_in_state() >= FILL_TIMEOUT_MS )
             {
                 pumpOFF();
                 digitalWrite(LED_BUILTIN, LOW);
