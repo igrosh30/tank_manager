@@ -34,10 +34,9 @@ void WaterTank_Worker::init(Stream* port)//WaterTank
     pinMode(VALVE,OUTPUT);
 
     //stability:
-    // this->pumpOFF();
-    // this->close_valve();
+    this->pumpOFF();
+    this->close_valve();
     set_next_state(tank_state::CHECK_STABILITY, "set init state");//NEEDS to receive a PING! 
-
 }
 
 //-------------------------------------------------------------------------------
@@ -96,17 +95,15 @@ void WaterTank_Worker::update_state()
     switch (this->current_tank_state)
     {
         case tank_state::CHECK_STABILITY:
-            if (isFull()) {
-                open_valve();
+            if (isFull())
                 set_next_state(tank_state::DRAIN, "boot: tank FULL");
-            }
-            else if (isEmpty()) {
-                pumpON();
+            else if (isEmpty())
                 set_next_state(tank_state::FILL, "boot: tank EMPTY");
-            }
             break;
 
         case tank_state::READY:
+            pumpOFF();
+            close_valve();
             #ifdef DEBUG_SERIAL
             if (time_in_state()>= 10000)
             {
@@ -120,26 +117,26 @@ void WaterTank_Worker::update_state()
             {
                 digitalWrite(LED_BUILTIN, HIGH);
                 startCycleFlag = false;
-                open_valve();
                 set_next_state(tank_state::DRAIN, "START_CYCLE command");
             }
             /*
             THIS TIMEOUT HELPS IF THE COM ISn't workin! - 
             ***if COM isn't working something is really bad...
+            if COM isn't working - we need to add a mechanism of making the system work!
             else if (time_in_state() >= SENSOR_TIMEOUT_MS) {
                 open_valve();
                 set_next_state(tank_state::DRAIN, "autonomous timer");}*/
             break;
 
         case tank_state::DRAIN:
-           if (time_in_state() >= DRAIN_TIMEOUT_MS)
+            open_valve();
+            pumpOFF();
+            if (time_in_state() >= DRAIN_TIMEOUT_MS)
             {
-                pumpON();
                 if(work_reboot || previous_tank_state == tank_state::DRAIN_LEFTOVERS)
                 {
                     if(work_reboot) work_reboot = false;
                     set_next_state(tank_state::FILL, "Filling");
-                    close_valve();
                 }
                 else if(previous_tank_state == tank_state::READY)
                     set_next_state(tank_state::DRAIN_LEFTOVERS, "Going drain leftovers");             
@@ -148,37 +145,36 @@ void WaterTank_Worker::update_state()
 
         
         case tank_state::DRAIN_LEFTOVERS:
+            open_valve();
+            pumpON();
             //we need first to get out the static water! is done with open valve! 
             //here we have 2 stages!
             if(time_in_state() >= DRAIN_LEFTOVERS_TIMEOUT_MS)//this needs to be calculated! 
             {
                 //left open valve + pumping! 
-                pumpOFF();
                 set_next_state(tank_state::DRAIN,"Drainned leftovers");
                 return;
             }
             
         case tank_state::FILL:
+            close_valve();
+            pumpON();
             if(time_in_state() <= 20000) // - we can add a sensor error warning if this happens!
                 return;
             if(isFull())
             {
                 if(delay_after_detection == 0)
                     delay_after_detection = millis();
+
                 if(millis() - delay_after_detection > FILL_DELAY_AFTER_ON )
                 {
-                    delay_after_detection = 0;
-                    pumpOFF();
-                    digitalWrite(LED_BUILTIN, LOW);
+                    delay_after_detection = 0;//reset delay counter
                     set_next_state(tank_state::READY, "top sensor: full");   
                 }
             }//TIMEOUT
-            else if (time_in_state() >= FILL_TIMEOUT_MS )
-            {
-                pumpOFF();
-                digitalWrite(LED_BUILTIN, LOW);
+            else if (time_in_state() >= FILL_TIMEOUT_MS )    
                 set_next_state(tank_state::READY, "top sensor: full");
-            }
+        
             break;
     }
 }
