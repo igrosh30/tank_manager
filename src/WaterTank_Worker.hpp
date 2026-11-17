@@ -33,6 +33,7 @@ constexpr uint32_t DRAIN_TIMEOUT_MS             = 1*MS_PER_MIN+ 30*MS_PER_SEC;//
 constexpr uint32_t DRAIN_LEFTOVERS_TIMEOUT_MS   = 30*MS_PER_SEC;//DRAIN_TIMEOUT
 constexpr uint32_t FILL_TIMEOUT_MS              = 50*MS_PER_SEC;//it had already been pumping watter!   
 constexpr uint32_t SENSOR_TIMEOUT_MS            = 30*MS_PER_MIN;  
+constexpr uint32_t FILL_DELAY_AFTER_ON          = 5*MS_PER_SEC;  
 
 //constexpr uint32_t SETUP_TIMEOUT_MS = DRAIN_TIMEOUT_MS+ FILL_TIMEOUT_MS + 2*MS_PER_MIN;; 
 

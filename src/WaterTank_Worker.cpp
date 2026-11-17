@@ -165,7 +165,7 @@ void WaterTank_Worker::update_state()
             {
                 if(delay_after_detection == 0)
                     delay_after_detection = millis();
-                if(millis() - delay_after_detection > 5000 )
+                if(millis() - delay_after_detection > FILL_DELAY_AFTER_ON )
                 {
                     delay_after_detection = 0;
                     pumpOFF();
